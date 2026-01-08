@@ -9,7 +9,7 @@ It has **no runtime dependencies**, runs via `systemd`, and is easy to install, 
 ## Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/<username>/syswatcher/main/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/vipinuengage/syswatcher/main/install.sh | sudo bash
 ```
 
 You will be prompted for thresholds and webhook URL during installation.

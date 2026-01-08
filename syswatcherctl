@@ -1,0 +1,98 @@
+#!/bin/bash
+
+CONFIG_FILE="/etc/syswatcher/config.conf"
+TIMER="syswatcher.timer"
+
+usage() {
+  echo "Usage:"
+  echo "  syswatcherctl status"
+  echo "  syswatcherctl config edit"
+  echo "  syswatcherctl config show"
+  echo "  syswatcherctl config reset"
+  echo "  syswatcherctl update"
+  echo "  syswatcherctl remove"
+}
+
+require_root() {
+  if [[ $EUID -ne 0 ]]; then
+    echo "Run as root (sudo)."
+    exit 1
+  fi
+}
+
+require_root
+
+CMD="${1:-}"
+
+case "$CMD" in
+  status)
+    systemctl status "$TIMER" --no-pager
+    ;;
+
+  config)
+    SUB="${2:-}"
+
+    case "$SUB" in
+      edit)
+        if [[ -n "${EDITOR:-}" ]] && command -v "$EDITOR" >/dev/null; then
+            EDITOR_CMD="$EDITOR"
+        elif command -v nano >/dev/null; then
+            EDITOR_CMD="nano"
+        elif command -v vi >/dev/null; then
+            EDITOR_CMD="vi"
+        else
+            echo "No editor found. Install nano or set \$EDITOR."
+            exit 1
+        fi
+
+        echo "Opening config with $EDITOR_CMD..."
+        "$EDITOR_CMD" "$CONFIG_FILE"
+
+        systemctl restart "$TIMER"
+        echo "Config updated."
+        ;;
+      show)
+        cat "$CONFIG_FILE"
+        ;;
+      reset)
+        cat > "$CONFIG_FILE" <<EOF
+CPU_THRESHOLD=80
+RAM_THRESHOLD=75
+DISK_THRESHOLD=85
+DISK_PATH="/"
+WEBHOOK_URL=""
+HOSTNAME_OVERRIDE=""
+COOLDOWN_SECONDS=300
+EOF
+        chmod 600 "$CONFIG_FILE"
+        systemctl restart "$TIMER"
+        echo "Config reset."
+        ;;
+      *)
+        usage
+        ;;
+    esac
+    ;;
+
+  update)
+    curl -fsSL https://raw.githubusercontent.com/vipinuengage/syswatcher/main/syswatcher \
+      -o /usr/local/bin/syswatcher
+    chmod 755 /usr/local/bin/syswatcher
+    systemctl restart "$TIMER"
+    echo "Updated syswatcher."
+    ;;
+
+  remove)
+    systemctl stop "$TIMER"
+    systemctl disable "$TIMER"
+    rm -f /usr/local/bin/syswatcher /usr/local/bin/syswatcherctl
+    rm -rf /etc/syswatcher /var/lib/syswatcher
+    rm -f /lib/systemd/system/syswatcher.*
+    systemctl daemon-reload
+    echo "Syswatcher removed."
+    ;;
+
+  *)
+    usage
+    ;;
+esac

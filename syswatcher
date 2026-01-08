@@ -1,0 +1,119 @@
+#!/bin/bash
+set -euo pipefail
+
+#######################################
+# Paths
+#######################################
+CONFIG_FILE="/etc/syswatcher/config.conf"
+STATE_DIR="/var/lib/syswatcher"
+STATE_FILE="$STATE_DIR/last_alert"
+LOCK_FILE="/run/syswatcher.lock"
+LOG_TAG="syswatcher"
+
+#######################################
+# Logging
+#######################################
+log() {
+  logger -t "$LOG_TAG" "$1"
+}
+
+#######################################
+# Preconditions
+#######################################
+if [[ ! -f "$CONFIG_FILE" ]]; then
+  log "Config file missing: $CONFIG_FILE"
+  exit 0
+fi
+
+mkdir -p "$STATE_DIR"
+
+#######################################
+# Lock (prevent overlapping runs)
+#######################################
+exec 9>"$LOCK_FILE" || exit 0
+flock -n 9 || exit 0
+
+#######################################
+# Load config safely
+#######################################
+# shellcheck disable=SC1090
+source "$CONFIG_FILE"
+
+#######################################
+# Validate required config
+#######################################
+for v in CPU_THRESHOLD RAM_THRESHOLD DISK_THRESHOLD DISK_PATH WEBHOOK_URL COOLDOWN_SECONDS; do
+  if [[ -z "${!v:-}" ]]; then
+    log "Missing config value: $v"
+    exit 0
+  fi
+done
+
+#######################################
+# Cooldown check
+#######################################
+NOW=$(date +%s)
+
+if [[ -f "$STATE_FILE" ]]; then
+  LAST=$(cat "$STATE_FILE" || echo 0)
+  if (( NOW - LAST < COOLDOWN_SECONDS )); then
+    exit 0
+  fi
+fi
+
+#######################################
+# CPU usage
+#######################################
+read -r _ u n s i iw irq sirq st < /proc/stat
+t1=$((u+n+s+i+iw+irq+sirq+st))
+i1=$i
+sleep 1
+read -r _ u n s i iw irq sirq st < /proc/stat
+t2=$((u+n+s+i+iw+irq+sirq+st))
+i2=$i
+
+CPU=$(( ((t2-t1)-(i2-i1)) * 100 / (t2-t1) ))
+
+#######################################
+# RAM usage
+#######################################
+RAM=$(free | awk '/Mem:/ {printf "%.0f", $3/$2*100}')
+
+#######################################
+# Disk usage
+#######################################
+DISK=$(df -P "$DISK_PATH" | awk 'NR==2 {gsub("%",""); print $5}')
+
+#######################################
+# Threshold evaluation
+#######################################
+ALERTS=()
+
+[[ "$CPU"  -ge "$CPU_THRESHOLD"  ]] && ALERTS+=("CPU: ${CPU}%")
+[[ "$RAM"  -ge "$RAM_THRESHOLD"  ]] && ALERTS+=("RAM: ${RAM}%")
+[[ "$DISK" -ge "$DISK_THRESHOLD" ]] && ALERTS+=("Disk ($DISK_PATH): ${DISK}%")
+
+#######################################
+# Send alert
+#######################################
+if [[ ${#ALERTS[@]} -gt 0 ]]; then
+  HOST="${HOSTNAME_OVERRIDE:-$(hostname)}"
+
+  MESSAGE="🚨 Resource Alert
+Host: $HOST
+
+$(printf '%s\n' "${ALERTS[@]}")"
+
+  curl -fsS -X POST \
+    -H "Content-Type: application/json" \
+    -d "{\"text\":\"$MESSAGE\"}" \
+    "$WEBHOOK_URL" >/dev/null || {
+      log "Failed to send alert"
+      exit 0
+    }
+
+  echo "$NOW" > "$STATE_FILE"
+  log "Alert sent: ${ALERTS[*]}"
+fi
+
+exit 0
