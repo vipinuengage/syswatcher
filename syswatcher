@@ -33,13 +33,20 @@ if [[ -f "$STATE_FILE" ]]; then
   (( NOW - LAST < COOLDOWN_SECONDS )) && exit 0
 fi
 
-read -r _ u n s i iw irq sirq st < /proc/stat
-t1=$((u+n+s+i+iw+irq+sirq+st)); i1=$i
-sleep 1
-read -r _ u n s i iw irq sirq st < /proc/stat
-t2=$((u+n+s+i+iw+irq+sirq+st)); i2=$i
+read_cpu() {
+  awk '/^cpu / {
+    total = 0
+    for (i = 2; i <= NF; i++) total += $i
+    print total, $5
+  }' /proc/stat
+}
 
-CPU=$(( ((t2-t1)-(i2-i1)) * 100 / (t2-t1) ))
+read total1 idle1 < <(read_cpu)
+sleep 1
+read total2 idle2 < <(read_cpu)
+
+CPU=$(( ( (total2-total1)-(idle2-idle1) ) * 100 / (total2-total1) ))
+
 RAM=$(free | awk '/Mem:/ {printf "%.0f", $3/$2*100}')
 DISK=$(df -P "$DISK_PATH" | awk 'NR==2 {gsub("%",""); print $5}')
 
