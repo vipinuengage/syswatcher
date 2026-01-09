@@ -31,7 +31,7 @@ It is designed to be:
 
 ## Installation
 
-### Install (recommended)
+### Install
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/vipinuengage/syswatcher/main/install.sh | sudo bash
@@ -46,7 +46,7 @@ During installation, you will be prompted for:
 * Google Chat webhook URL
 * Alert cooldown (seconds)
 
----
+<!-- ---
 
 ### Update (via install.sh)
 
@@ -77,7 +77,7 @@ This removes:
 * Binaries
 * Configuration files
 * State files
-* systemd service and timer
+* systemd service and timer -->
 
 ---
 
@@ -195,61 +195,6 @@ Completely removes:
 
 ---
 
-### Show configuration
-
-```bash
-sudo syswatcherctl config show
-```
-
-Prints the current configuration values.
-
----
-
-### Edit configuration
-
-```bash
-sudo syswatcherctl config edit
-```
-
-Opens the configuration file in the default editor.
-
----
-
-### Reset configuration
-
-```bash
-sudo syswatcherctl config reset
-```
-
-Deletes the existing config and recreates it with default values.
-
----
-
-### Update syswatcher
-
-```bash
-sudo syswatcherctl update
-```
-
-Downloads and installs the latest version while preserving configuration.
-
----
-
-### Remove syswatcher
-
-```bash
-sudo syswatcherctl remove
-```
-
-Completely removes:
-
-* Binaries
-* Config files
-* State files
-* systemd service and timer
-
----
-
 ## systemd Units
 
 Installed units:
@@ -304,7 +249,3 @@ sudo syswatcherctl remove
 ```
 
 ---
-
-## License
-
-MIT License
