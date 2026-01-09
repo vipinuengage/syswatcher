@@ -1,72 +1,71 @@
 # Syswatcher
 
-Syswatcher is a **lightweight Ubuntu system monitor** that checks **CPU, RAM, and disk usage** and sends alerts to a **Google Chat webhook** when thresholds are exceeded.
+Syswatcher is a **lightweight system monitoring utility for Ubuntu** that periodically checks **CPU, RAM, and Disk usage** and sends alerts to **Google Chat** when configured thresholds are exceeded.
 
-It has **no runtime dependencies**, runs via `systemd`, and is easy to install, update, and remove.
+It is designed to be:
+
+* Minimal and dependency-free
+* Easy to install and manage
+* Fully systemd-based (timer-driven)
 
 ---
 
-## Install
+## Features
+
+* Monitors CPU, RAM, and Disk usage
+* Configurable thresholds
+* Google Chat webhook alerts
+* Cooldown mechanism to avoid alert spam
+* Runs automatically every minute using systemd timer
+* Simple CLI management via `syswatcherctl`
+
+---
+
+## Requirements
+
+* Ubuntu (systemd-based)
+* bash
+* curl
+
+---
+
+## Installation
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/vipinuengage/syswatcher/main/install.sh | sudo bash
 ```
 
-You will be prompted for thresholds and webhook URL during installation.
+During installation, you will be prompted for:
+
+* CPU threshold (%)
+* RAM threshold (%)
+* Disk threshold (%)
+* Disk mount path (e.g. `/`)
+* Google Chat webhook URL
+* Alert cooldown (seconds)
 
 ---
 
-## Usage
+## How It Works
 
-Check status:
+* A **systemd timer** runs `syswatcher` every minute
+* Resource usage is calculated
+* If any metric crosses its threshold:
 
-```bash
-sudo syswatcherctl status
-```
-
-Edit config:
-
-```bash
-sudo syswatcherctl config edit
-```
-
-View config:
-
-```bash
-sudo syswatcherctl config show
-```
-
-Reset config:
-
-```bash
-sudo syswatcherctl config reset
-```
+  * A Google Chat alert is sent
+  * A cooldown timestamp is stored to prevent repeated alerts
 
 ---
 
-## Update
+## Configuration
 
-```bash
-sudo syswatcherctl update
-```
-
----
-
-## Remove
-
-```bash
-sudo syswatcherctl remove
-```
-
----
-
-## Config File
+Configuration file location:
 
 ```text
 /etc/syswatcher/config.conf
 ```
 
-Example:
+Example configuration:
 
 ```bash
 CPU_THRESHOLD=80
@@ -74,19 +73,146 @@ RAM_THRESHOLD=75
 DISK_THRESHOLD=85
 DISK_PATH="/"
 WEBHOOK_URL="https://chat.googleapis.com/..."
+HOSTNAME_OVERRIDE=""
 COOLDOWN_SECONDS=300
+```
+
+### Configuration Options
+
+| Variable          | Description                                   |
+| ----------------- | --------------------------------------------- |
+| CPU_THRESHOLD     | CPU usage percentage to trigger alert         |
+| RAM_THRESHOLD     | RAM usage percentage to trigger alert         |
+| DISK_THRESHOLD    | Disk usage percentage to trigger alert        |
+| DISK_PATH         | Disk mount path to monitor                    |
+| WEBHOOK_URL       | Google Chat webhook URL (required for alerts) |
+| HOSTNAME_OVERRIDE | Optional custom hostname in alerts            |
+| COOLDOWN_SECONDS  | Minimum seconds between alerts                |
+
+---
+
+## CLI Commands (`syswatcherctl`)
+
+### Show status
+
+```bash
+sudo syswatcherctl status
+```
+
+Shows whether the systemd timer is active.
+
+---
+
+### Show configuration
+
+```bash
+sudo syswatcherctl config show
+```
+
+Prints the current configuration values.
+
+---
+
+### Edit configuration
+
+```bash
+sudo syswatcherctl config edit
+```
+
+Opens the configuration file in the default editor.
+
+---
+
+### Reset configuration
+
+```bash
+sudo syswatcherctl config reset
+```
+
+Deletes the existing config and recreates it with default values.
+
+---
+
+### Update syswatcher
+
+```bash
+sudo syswatcherctl update
+```
+
+Downloads and installs the latest version while preserving configuration.
+
+---
+
+### Remove syswatcher
+
+```bash
+sudo syswatcherctl remove
+```
+
+Completely removes:
+
+* Binaries
+* Config files
+* State files
+* systemd service and timer
+
+---
+
+## systemd Units
+
+Installed units:
+
+* `syswatcher.service` – One-shot execution
+* `syswatcher.timer` – Runs every minute
+
+Check timer status:
+
+```bash
+systemctl list-timers | grep syswatcher
 ```
 
 ---
 
-## Requirements
+## Manual Execution (Debugging)
 
-* Ubuntu (systemd)
-* bash
-* curl
+You can run syswatcher manually:
+
+```bash
+sudo /usr/local/bin/syswatcher
+```
+
+For detailed tracing:
+
+```bash
+sudo bash -x /usr/local/bin/syswatcher
+```
+
+---
+
+## Alert Cooldown
+
+Syswatcher stores the last alert timestamp at:
+
+```text
+/var/lib/syswatcher/last_alert
+```
+
+To force alerts during testing:
+
+```bash
+sudo rm -f /var/lib/syswatcher/last_alert
+```
+
+---
+
+## Uninstall
+
+```bash
+sudo syswatcherctl remove
+```
 
 ---
 
 ## License
 
-MIT
+MIT License
