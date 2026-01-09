@@ -94,7 +94,7 @@ fi
 # Alert message
 #######################################
 HOST="${HOSTNAME_OVERRIDE:-$(hostname)}"
-TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
+TIMESTAMP=$(TZ=Asia/Kolkata date +"%Y-%m-%d %H:%M IST")
 
 MESSAGE="🚨 *System Resource Alert*
 
